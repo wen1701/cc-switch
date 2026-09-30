@@ -25,10 +25,12 @@ Keep provider-discovered Codex models without manual name mapping in this person
 - Implemented modelCatalog.discoveredModels per provider, separate from manual rows; native Responses only.
 - Frontend fetch/save/reopen, failure/empty refresh, identity invalidation and stale-response regressions pass (39 relevant tests). Typecheck and renderer build pass.
 - Four isolated Rust tests pass; generated output parsed by installed Codex 0.159.0 model/list in a temporary profile (gpt-6.1-sol + unknown ID, no inference).
-- Added fork-only Linux test/package workflow and usage/migration notes; complete backend integration and Tauri build remain pending GitHub Actions.
+- Added fork-only Linux test/package workflow and usage/migration notes; backend integration is now passing in GitHub Actions; Debian release packaging passed.
 
 # Blockers / changed assumptions
 - Host Rust 1.75 and missing GTK/WebKit development libraries prevent a full local Tauri build. Upstream pins Rust 1.95; use fork CI for full integration checks if available.
 
 - User confirmed priority: manual mapping > downloaded models; download replaces only discovered snapshot.
 - Full frontend CI and backend Clippy passed. Backend switch test fixture omitted native Responses metadata (defaults to ProxyChat); corrected fixture to match the real form payload and split workflow steps for diagnostics.
+
+- f5bd067: native catalog tests and real A/B provider-switch integration pass. Full Linux/macOS/Windows backend CI and frontend CI pass; Debian release build and artifact upload succeeded (run 36661933391).
