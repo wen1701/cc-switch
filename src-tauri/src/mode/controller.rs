@@ -2291,6 +2291,39 @@ command = "fs-server"
         assert_eq!(codex_text(), on_a);
     }
 
+    #[tokio::test]
+    #[serial]
+    async fn codex_discovered_catalog_follows_the_selected_provider() {
+        let _home = Home::new();
+        set_preservation(false);
+        seed_codex(CODEX_USER_LIVE, None);
+        let mut a = codex_row("a", "https://a.example/v1", "");
+        let mut b = codex_row("b", "https://b.example/v1", "");
+        a.settings_config["modelCatalog"] =
+            json!({"models": [], "discoveredModels": ["gpt-6.1-sol"]});
+        b.settings_config["modelCatalog"] =
+            json!({"models": [], "discoveredModels": ["provider-b-model"]});
+        let state = state_with(AppType::Codex, &[a, b], "a").await;
+
+        for (provider, model) in [
+            ("b", "provider-b-model"),
+            ("a", "gpt-6.1-sol"),
+            ("b", "provider-b-model"),
+        ] {
+            ProviderService::switch(&state, AppType::Codex, provider).expect("switch provider");
+            assert_eq!(
+                codex_doc()["model_catalog_json"].as_str(),
+                Some(crate::live::project::codex::CATALOG_FILENAME)
+            );
+            let catalog: Value = serde_json::from_slice(
+                &fs::read(crate::codex_config::get_codex_model_catalog_path()).unwrap(),
+            )
+            .unwrap();
+            assert_eq!(catalog["models"].as_array().unwrap().len(), 1);
+            assert_eq!(catalog["models"][0]["slug"], model);
+        }
+    }
+
     /// 行里自己指定的模型目录指针跟着这一家走：切走时删掉，切到生成了目录的那家就换成
     /// CC Switch 自己的指针；代理契约带进来的，退出代理时同样删掉。用户直接写进 live 的
     /// 指针一直留着。

@@ -622,6 +622,8 @@ function ProviderFormFull({
     codexBaseUrl,
     codexModel,
     codexCatalogModels,
+    codexDiscoveredModels,
+    setCodexDiscoveredModels,
     codexAuthError,
     setCodexAuth,
     setCodexConfig,
@@ -1498,10 +1500,18 @@ function ProviderFormFull({
         } as {
           auth: unknown;
           config: string;
-          modelCatalog?: { models: CodexCatalogModel[] };
+          modelCatalog?: {
+            models: CodexCatalogModel[];
+            discoveredModels?: string[];
+          };
         };
-        if (normalizedCatalogModels.length > 0) {
-          configObj.modelCatalog = { models: normalizedCatalogModels };
+        const discoveredModels =
+          category !== "official" ? codexDiscoveredModels : [];
+        if (normalizedCatalogModels.length > 0 || discoveredModels.length > 0) {
+          configObj.modelCatalog = {
+            models: normalizedCatalogModels,
+            ...(discoveredModels.length > 0 ? { discoveredModels } : {}),
+          };
         }
         settingsConfig = JSON.stringify(configObj);
       } catch (err) {
@@ -2465,6 +2475,8 @@ function ProviderFormFull({
               onCodexChatReasoningChange={setCodexChatReasoning}
               promptCacheRouting={promptCacheRouting}
               onPromptCacheRoutingChange={setPromptCacheRouting}
+              discoveredModels={codexDiscoveredModels}
+              onDiscoveredModelsChange={setCodexDiscoveredModels}
               catalogModels={codexCatalogModels}
               onCatalogModelsChange={setCodexCatalogModels}
               speedTestEndpoints={speedTestEndpoints}

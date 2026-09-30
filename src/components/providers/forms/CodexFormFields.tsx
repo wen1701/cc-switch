@@ -133,6 +133,8 @@ interface CodexFormFieldsProps {
   onPromptCacheRoutingChange: (value: PromptCacheRoutingMode) => void;
 
   // Model Catalog
+  discoveredModels?: string[];
+  onDiscoveredModelsChange?: (models: string[]) => void;
   catalogModels?: CodexCatalogModel[];
   onCatalogModelsChange?: (models: CodexCatalogModel[]) => void;
 
@@ -415,6 +417,8 @@ export function CodexFormFields({
   onCodexChatReasoningChange,
   promptCacheRouting,
   onPromptCacheRoutingChange,
+  discoveredModels = [],
+  onDiscoveredModelsChange,
   catalogModels = [],
   onCatalogModelsChange,
   speedTestEndpoints,
@@ -436,7 +440,11 @@ export function CodexFormFields({
 
   useEffect(() => {
     fetchModelsSeqRef.current += 1;
+    setIsFetchingModels(false);
     setFetchedModels((prev) => (prev.length === 0 ? prev : []));
+    return () => {
+      fetchModelsSeqRef.current += 1;
+    };
   }, [
     codexBaseUrl,
     isFullUrl,
@@ -445,6 +453,9 @@ export function CodexFormFields({
     isXaiOauthPreset,
     isXaiOauthAuthenticated,
     selectedXaiAccountId,
+    providerId,
+    apiFormat,
+    category,
   ]);
   // 思考能力随 Chat 格式显示（仅 Chat Completions 转换路径用得上）；模型映射常驻
   //（填了才生成 catalog）。两者都已与「路由接管」概念解耦。
@@ -580,7 +591,9 @@ export function CodexFormFields({
           console.warn("[XaiOAuth] Failed to fetch models:", err);
           showFetchModelsError(err, t);
         })
-        .finally(() => setIsFetchingModels(false));
+        .finally(() => {
+          if (seq === fetchModelsSeqRef.current) setIsFetchingModels(false);
+        });
       return;
     }
 
@@ -603,6 +616,23 @@ export function CodexFormFields({
       .then((models) => {
         if (seq !== fetchModelsSeqRef.current) return;
         setFetchedModels(models);
+        if (
+          appId === "codex" &&
+          category !== "official" &&
+          apiFormat === "openai_responses"
+        ) {
+          const ids = [
+            ...new Set(
+              models
+                .map(({ id }) => id.trim())
+                .filter(
+                  (id) => id.length > 0 && !/[\u0000-\u001f\u007f]/.test(id),
+                ),
+            ),
+          ];
+          // A failed/empty refresh must not erase the last usable snapshot.
+          if (ids.length > 0) onDiscoveredModelsChange?.(ids);
+        }
         if (models.length === 0) {
           toast.info(t("providerForm.fetchModelsEmpty"));
         } else {
@@ -616,7 +646,9 @@ export function CodexFormFields({
         console.warn("[ModelFetch] Failed:", err);
         showFetchModelsError(err, t);
       })
-      .finally(() => setIsFetchingModels(false));
+      .finally(() => {
+        if (seq === fetchModelsSeqRef.current) setIsFetchingModels(false);
+      });
   }, [
     codexBaseUrl,
     codexApiKey,
@@ -625,6 +657,10 @@ export function CodexFormFields({
     isXaiOauthPreset,
     isXaiOauthAuthenticated,
     selectedXaiAccountId,
+    appId,
+    category,
+    apiFormat,
+    onDiscoveredModelsChange,
     t,
   ]);
 
@@ -661,18 +697,29 @@ export function CodexFormFields({
         }),
       });
     }
+    for (const id of apiFormat === "openai_responses" ? discoveredModels : []) {
+      if (!seen.has(id)) {
+        seen.add(id);
+        suggestions.push({ id, ownedBy: null });
+      }
+    }
     for (const model of fetchedModels) {
       if (seen.has(model.id)) continue;
       seen.add(model.id);
       suggestions.push(model);
     }
     return suggestions;
-  }, [catalogRows, fetchedModels, t]);
+  }, [apiFormat, catalogRows, discoveredModels, fetchedModels, t]);
 
   // 填了映射时才提示"默认模型不在映射中"（无映射的供应商本来就直接请求任意模型名）
   const trimmedDefaultModel = codexModel.trim();
   const isDefaultModelOutsideCatalog =
-    catalogRows.length > 0 &&
+    (catalogRows.length > 0 ||
+      (apiFormat === "openai_responses" && discoveredModels.length > 0)) &&
+    !(
+      apiFormat === "openai_responses" &&
+      discoveredModels.includes(trimmedDefaultModel)
+    ) &&
     !!trimmedDefaultModel &&
     !catalogRows.some((row) => row.model.trim() === trimmedDefaultModel);
 
@@ -1177,6 +1224,32 @@ export function CodexFormFields({
                 </div>
               </div>
             )}
+
+            {appId === "codex" &&
+              apiFormat === "openai_responses" &&
+              onDiscoveredModelsChange && (
+                <div className="space-y-2 border-t border-border-default pt-3">
+                  <p className="text-xs leading-relaxed text-muted-foreground">
+                    {t("codexConfig.discoveryHint", {
+                      defaultValue:
+                        "拉取模型后，保存的 {{count}} 个模型将随此供应商切换到 Codex，使用原始模型 ID。再次拉取会更新此列表，手工模型配置保留。模型能力以本机 Codex 目录为准，未知模型使用保守默认值。保存后可能需要重启 Codex。",
+                      count: discoveredModels.length,
+                    })}
+                  </p>
+                  {discoveredModels.length > 0 && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onDiscoveredModelsChange([])}
+                    >
+                      {t("codexConfig.clearDiscoveredModels", {
+                        defaultValue: "清除自动发现列表",
+                      })}
+                    </Button>
+                  )}
+                </div>
+              )}
 
             {/* 模型映射 / 模型目录 —— 与「路由接管」解耦，常驻显示（可编辑即渲染）。
                 填了才生成 catalog：Chat 模式生成兼容路由、原生 Responses 生成

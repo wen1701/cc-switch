@@ -1536,6 +1536,8 @@
     "defaultModelHint": "Codex 默认请求的模型，随时可改，无需等待预设更新。留空且配置了模型映射时，默认使用映射第一行。",
     "defaultModelNotInCatalog": "该模型不在模型映射中，Codex 的 /model 菜单不会列出它（直接请求仍然有效）。",
     "addToModelMapping": "加入映射",
+    "discoveryHint": "拉取模型后，保存的 {{count}} 个模型将随此供应商切换到 Codex，使用原始模型 ID。再次拉取会更新此列表，手工模型配置保留。模型能力以本机 Codex 目录为准，未知模型使用保守默认值。保存后可能需要重启 Codex。",
+    "clearDiscoveredModels": "清除自动发现列表",
     "modelMappingTitle": "模型映射",
     "modelMappingHint": "生成 Codex model_catalog_json，让 /model 命令显示这些第三方模型名；表中条目按填写内容原样保存。修改后需要重启 Codex 才能刷新模型列表。",
     "addCatalogModel": "添加模型",

@@ -2019,6 +2019,36 @@ fn codex_model_catalog_from_settings(
     config_text: &str,
     profile: CodexCatalogToolProfile,
 ) -> Result<Option<Value>, AppError> {
+    let manual = codex_manual_model_catalog_from_settings(settings, config_text, profile)?;
+    let discovered = &settings["modelCatalog"]["discoveredModels"];
+    if profile != CodexCatalogToolProfile::NativeResponses
+        || discovered.as_array().is_none_or(|ids| ids.is_empty())
+    {
+        return Ok(manual);
+    }
+    // Read on each projection: another Codex install may refresh this cache.
+    // A missing/malformed cache must not prevent switching providers.
+    let cached = read_limited_string(
+        &get_codex_config_dir().join("models_cache.json"),
+        MAX_CODEX_CATALOG_BYTES,
+    )
+    .ok()
+    .and_then(|text| serde_json::from_str::<Value>(&text).ok())
+    .unwrap_or(Value::Null);
+    Ok(crate::codex_discovery::merge_discovered_models(
+        manual,
+        discovered,
+        &cached,
+        &load_codex_native_responses_template(),
+        extract_codex_top_level_u64(config_text, "model_context_window").unwrap_or(128_000),
+    ))
+}
+
+fn codex_manual_model_catalog_from_settings(
+    settings: &Value,
+    config_text: &str,
+    profile: CodexCatalogToolProfile,
+) -> Result<Option<Value>, AppError> {
     let specs = codex_catalog_model_specs(settings);
     if specs.is_empty() {
         return Ok(None);

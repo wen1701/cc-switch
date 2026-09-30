@@ -107,6 +107,10 @@ export function useCodexConfigState({ initialData }: UseCodexConfigStateProps) {
   const [codexCatalogModels, setCodexCatalogModels] = useState<
     CodexCatalogModel[]
   >([]);
+  const [codexDiscoveredModels, setCodexDiscoveredModels] = useState<string[]>(
+    [],
+  );
+  const discoverySourceRef = useRef<string | null>(null);
   const [codexAuthError, setCodexAuthError] = useState("");
 
   const isUpdatingCodexBaseUrlRef = useRef(false);
@@ -129,7 +133,18 @@ export function useCodexConfigState({ initialData }: UseCodexConfigStateProps) {
       const auth = (config as any).auth || {};
       setCodexAuthState(JSON.stringify(auth, null, 2));
 
+      discoverySourceRef.current = JSON.stringify([
+        extractCodexBaseUrl(configStr) || "",
+        pickCodexApiKey(auth, configStr),
+      ]);
       const modelCatalog = (config as any).modelCatalog;
+      setCodexDiscoveredModels(
+        Array.isArray(modelCatalog?.discoveredModels)
+          ? modelCatalog.discoveredModels.filter(
+              (id: unknown) => typeof id === "string",
+            )
+          : [],
+      );
       const rawCatalogModels = Array.isArray(modelCatalog?.models)
         ? modelCatalog.models
         : [];
@@ -187,6 +202,29 @@ export function useCodexConfigState({ initialData }: UseCodexConfigStateProps) {
     }
     const extractedKey = pickCodexApiKey(parsed, codexConfig);
     setCodexApiKey((prev) => (prev === extractedKey ? prev : extractedKey));
+  }, [codexAuth, codexConfig]);
+
+  // Invalidate only discovered data when the upstream identity changes, including
+  // raw TOML/auth edits. Manual catalog rows remain under the user's control.
+  useEffect(() => {
+    if (!codexAuth) return;
+    let auth: { OPENAI_API_KEY?: unknown } | null;
+    try {
+      auth = JSON.parse(codexAuth);
+    } catch {
+      return;
+    }
+    const source = JSON.stringify([
+      extractCodexBaseUrl(codexConfig) || "",
+      pickCodexApiKey(auth, codexConfig),
+    ]);
+    if (
+      discoverySourceRef.current !== null &&
+      discoverySourceRef.current !== source
+    ) {
+      setCodexDiscoveredModels([]);
+    }
+    discoverySourceRef.current = source;
   }, [codexAuth, codexConfig]);
 
   // 验证 Codex Auth JSON
@@ -304,6 +342,8 @@ export function useCodexConfigState({ initialData }: UseCodexConfigStateProps) {
       setCodexAuth(authString);
       setCodexConfig(config);
       setCodexCatalogModels(modelCatalogModels);
+      setCodexDiscoveredModels([]);
+      discoverySourceRef.current = null;
 
       const baseUrl = extractCodexBaseUrl(config);
       setCodexBaseUrl(baseUrl || "");
@@ -320,6 +360,8 @@ export function useCodexConfigState({ initialData }: UseCodexConfigStateProps) {
     codexBaseUrl,
     codexModel,
     codexCatalogModels,
+    codexDiscoveredModels,
+    setCodexDiscoveredModels,
     codexAuthError,
     setCodexAuth,
     setCodexConfig,

@@ -1,3 +1,5 @@
+> 自用 fork：新增按供应商同步 Codex 模型目录，详见 [使用说明](docs/fork-model-discovery.md)。
+
 <div align="center">
 
 # CC Switch
