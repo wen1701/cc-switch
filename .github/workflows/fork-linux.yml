@@ -33,12 +33,19 @@ jobs:
       - name: Frontend regression tests
         run: pnpm test:unit tests/components/CodexFormFields.discovery.test.tsx tests/components/ProviderForm.discovery.test.tsx tests/hooks/useCodexConfigState.discovery.test.ts tests/components/ProviderForm.codexCatalog.test.ts tests/hooks/useCodexConfigState.catalog.test.ts tests/hooks/useCodexConfigState.bearer.test.ts tests/components/GrokBuildProviderForm.test.tsx tests/components/ClaudeFormFields.test.tsx
       - run: pnpm build:renderer
-      - name: Backend regression tests
+      - name: Check Rust formatting
+        working-directory: src-tauri
+        run: cargo fmt --check
+      - name: Catalog regression tests
         working-directory: src-tauri
         run: |
-          cargo fmt --check
-          cargo test --lib codex_discovery::tests
-          cargo test --lib codex_discovered_catalog_follows_the_selected_provider
+          trap 'tail -n 60 "$RUNNER_TEMP/catalog-tests.log" | sed "s/^/::error::/"' ERR
+          cargo test --lib codex_discovery::tests 2>&1 | tee "$RUNNER_TEMP/catalog-tests.log"
+      - name: Provider switch regression test
+        working-directory: src-tauri
+        run: |
+          trap 'tail -n 60 "$RUNNER_TEMP/switch-test.log" | sed "s/^/::error::/"' ERR
+          cargo test --lib codex_discovered_catalog_follows_the_selected_provider 2>&1 | tee "$RUNNER_TEMP/switch-test.log"
       - name: Build Debian package
         run: pnpm tauri build --bundles deb --config '{"bundle":{"createUpdaterArtifacts":false}}'
       - uses: actions/upload-artifact@v4

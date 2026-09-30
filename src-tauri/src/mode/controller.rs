@@ -2299,6 +2299,12 @@ command = "fs-server"
         seed_codex(CODEX_USER_LIVE, None);
         let mut a = codex_row("a", "https://a.example/v1", "");
         let mut b = codex_row("b", "https://b.example/v1", "");
+        for provider in [&mut a, &mut b] {
+            provider.meta = Some(crate::provider::ProviderMeta {
+                api_format: Some("openai_responses".into()),
+                ..Default::default()
+            });
+        }
         a.settings_config["modelCatalog"] =
             json!({"models": [], "discoveredModels": ["gpt-6.1-sol"]});
         b.settings_config["modelCatalog"] =

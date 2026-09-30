@@ -29,3 +29,6 @@ Keep provider-discovered Codex models without manual name mapping in this person
 
 # Blockers / changed assumptions
 - Host Rust 1.75 and missing GTK/WebKit development libraries prevent a full local Tauri build. Upstream pins Rust 1.95; use fork CI for full integration checks if available.
+
+- User confirmed priority: manual mapping > downloaded models; download replaces only discovered snapshot.
+- Full frontend CI and backend Clippy passed. Backend switch test fixture omitted native Responses metadata (defaults to ProxyChat); corrected fixture to match the real form payload and split workflow steps for diagnostics.
